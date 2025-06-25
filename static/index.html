@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔍 Image Search Engine</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .section {
+      margin-bottom: 40px;
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 10px;
+      background: white;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    input[type="file"], input[type="range"] {
+      width: 100%;
+    }
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    img {
+      max-width: 180px;
+      margin: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .results {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🔍 Image Search Engine</h1>
+
+<div class="section">
+  <h3>1. Upload Dataset Images (Multiple):</h3>
+  <input type="file" id="datasetUpload" multiple>
+  <button onclick="uploadDataset()">Upload Dataset</button>
+  <p id="uploadStatus"></p>
+</div>
+
+<div class="section">
+  <h3>2. Upload Query Image:</h3>
+  <input type="file" id="queryImage" accept="image/*" onchange="showQueryImage(event)">
+<br><br>
+<img id="queryImagePreview" src="" alt="Query Image Preview" style="max-width: 300px; display: none; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+
+  <h4>Set Similarity Threshold:</h4>
+  <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.65">
+  <span id="thresholdValue">0.65</span>
+  <br><br>
+  <button onclick="searchImages()">Search Similar Images</button>
+</div>
+
+<div class="section">
+  <h3>Results:</h3>
+  <div id="results" class="results"></div>
+</div>
+
+<script>
+  const API_BASE = "http://localhost:5000";
+
+  // Update threshold text
+  document.getElementById("thresholdSlider").addEventListener("input", function() {
+    document.getElementById("thresholdValue").textContent = this.value;
+  });
+
+  function showQueryImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById('queryImagePreview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+  }
+
+  // Upload dataset
+  function uploadDataset() {
+    const files = document.getElementById("datasetUpload").files;
+    if (!files.length) return alert("Please select images.");
+
+    const formData = new FormData();
+    for (let file of files) formData.append("images", file);
+
+    fetch(`${API_BASE}/upload-dataset`, {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("uploadStatus").innerText = data.message;
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error uploading dataset.");
+    });
+  }
+
+  // Search images
+  function searchImages() {
+    const file = document.getElementById("queryImage").files[0];
+    const threshold = document.getElementById("thresholdSlider").value;
+
+    if (!file) return alert("Please select a query image.");
+
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("threshold", threshold);
+
+    fetch(`${API_BASE}/search`, {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(results => {
+      const resultDiv = document.getElementById("results");
+      resultDiv.innerHTML = "";
+      if (!results.length) {
+        resultDiv.innerText = "No similar images found.";
+        return;
+      }
+
+      results.forEach(r => {
+        const img = document.createElement("img");
+        img.src = `${API_BASE}/dataset/${r.image}`;
+        img.alt = r.image;
+        img.title = `Similarity: ${r.score}`;
+        resultDiv.appendChild(img);
+      });
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error during search.");
+    });
+  }
+</script>
+
+</body>
+</html>
